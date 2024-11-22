@@ -5,10 +5,10 @@ resource "aws_db_instance" "task_manager_db" {
   engine_version         = "16.3"
   instance_class         = "db.t3.micro"
   username               = "wera"
-  password               = "password" # Ensure to use a secure method for passwords
+  password               = "password" # Secure method for passwords
   db_subnet_group_name   = aws_db_subnet_group.task_manager_subnet_group.name
-  vpc_security_group_ids = [aws_security_group.rds_sg.id] # Ensure you define a security group
-  publicly_accessible    = true                           # Set to true if you want to access it publicly
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  publicly_accessible    = true
 }
 
 resource "aws_db_subnet_group" "task_manager_subnet_group" {

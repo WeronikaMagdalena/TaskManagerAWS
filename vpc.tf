@@ -24,7 +24,7 @@ resource "aws_security_group" "rds_sg" {
     from_port   = 5432 # PostgreSQL default port
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Adjust to your needs
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
