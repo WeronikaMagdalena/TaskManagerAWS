@@ -1,14 +1,6 @@
-# resource "aws_cognito_user_pool" "pool" {
-#   name                     = var.cognito_user_pool
-#   auto_verified_attributes = ["email"]
-# }
+# # TODO: Maven bucket deployment
 
-# resource "aws_cognito_user_pool_client" "client" {
-#   name         = var.cognito_user_pool_client
-#   user_pool_id = aws_cognito_user_pool.pool.id
-# }
-
-# resource "aws_s3_bucket" "web_app_bucket" {
+# resource "aws_s3_bucket" "backend_bucket" {
 #   bucket = var.web_app_deployment_bucket
 
 #   tags = {
