@@ -51,12 +51,6 @@ resource "aws_elastic_beanstalk_environment" "beanstalk_task_manager_env" {
     value     = "true"
   }
 
-  # setting {
-  #   name      = "SERVER_PORT"
-  #   namespace = "aws:elasticbeanstalk:application:environment"
-  #   value     = "8080"
-  # }
-
   setting {
     namespace = "aws:ec2:instances"
     name      = "InstanceTypes"
