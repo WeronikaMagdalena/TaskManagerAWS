@@ -3,3 +3,6 @@
 ## RDS
 
 ## Cognito
+
+## S3
+Bucket
