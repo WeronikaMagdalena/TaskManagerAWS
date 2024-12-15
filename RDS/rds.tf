@@ -1,5 +1,5 @@
 resource "aws_db_instance" "task_manager_db" {
-  identifier             = "task-manager-db-2"
+  identifier             = "task-manager-db-3"
   allocated_storage      = 20
   engine                 = "postgres"
   engine_version         = "16.3"
@@ -8,6 +8,7 @@ resource "aws_db_instance" "task_manager_db" {
   password               = "password" # Secret Manager
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
   publicly_accessible    = true
+  skip_final_snapshot    = true
 }
 
 data "aws_vpc" "default" {
@@ -19,10 +20,10 @@ resource "aws_security_group" "rds_sg" {
   vpc_id = data.aws_vpc.default.id
 
   ingress {
-    from_port   = 5432 # PostgreSQL default port
+    from_port   = 5432
     to_port     = 5432
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Adjust to your needs
+    cidr_blocks = ["0.0.0.0/0"] # set to my ip
   }
 
   egress {
@@ -33,10 +34,14 @@ resource "aws_security_group" "rds_sg" {
   }
 }
 
-# resource "null_resource" "create_table" {
-#   depends_on = [aws_db_instance.task_manager_db]
+output "db_instance_endpoint" {
+  value = aws_db_instance.task_manager_db.address
+}
 
-#   provisioner "local-exec" {
-#     command = "set PGPASSWORD=password && psql -h ${aws_db_instance.task_manager_db.endpoint} -U admin -d postgres -c \"CREATE TABLE task (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, description TEXT, deadline DATE, completed BOOLEAN DEFAULT FALSE);\""
-#   }
-# }
+resource "null_resource" "create_table" {
+  depends_on = [aws_db_instance.task_manager_db] # depends on db_instance_endpoint ?
+
+  provisioner "local-exec" {
+    command = "create_table.sh" # move to source
+  }
+}

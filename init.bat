@@ -1,1 +1,0 @@
-terraform init -var-file="dev.tfvars"

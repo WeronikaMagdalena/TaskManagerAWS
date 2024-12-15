@@ -28,3 +28,6 @@ variable "object_ownership" {
   default = "BucketOwnerPreferred"
   type    = string
 }
+
+# RDS
+# variable ""
