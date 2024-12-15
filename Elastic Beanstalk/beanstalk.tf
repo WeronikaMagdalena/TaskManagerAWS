@@ -1,5 +1,5 @@
 resource "aws_s3_bucket" "s3_bucket_task_manager_app" {
-  bucket = "ww-task-manager-app"
+  bucket = "ww-task-manager-app-27238348"
 }
 
 resource "aws_s3_bucket_ownership_controls" "s3_bucket_task_manager_app_ownership_controls" {
@@ -48,7 +48,7 @@ resource "aws_elastic_beanstalk_environment" "beanstalk_task_manager_env" {
   setting {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "DB_URL"
-    value     = aws_db_instance.task_manager_db. # jdbc:postgresql://${var.rds_endpoint}:5432/${var.db_name}"
+    value     = "jdbc:postgresql://task-manager-db-4.c5wkqwu2q57g.us-east-1.rds.amazonaws.com:5432/postgres" # aws_db_instance. # jdbc:postgresql://${var.rds_endpoint}:5432/${var.db_name}"
   }
 
   setting {

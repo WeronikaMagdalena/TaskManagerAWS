@@ -1,5 +1,5 @@
 resource "aws_db_instance" "task_manager_db" {
-  identifier             = "task-manager-db-3"
+  identifier             = "task-manager-db-4"
   allocated_storage      = 20
   engine                 = "postgres"
   engine_version         = "16.3"
@@ -31,17 +31,5 @@ resource "aws_security_group" "rds_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-output "db_instance_endpoint" {
-  value = aws_db_instance.task_manager_db.address
-}
-
-resource "null_resource" "create_table" {
-  depends_on = [aws_db_instance.task_manager_db] # depends on db_instance_endpoint ?
-
-  provisioner "local-exec" {
-    command = "create_table.sh" # move to source
   }
 }

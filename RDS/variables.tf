@@ -30,4 +30,12 @@ variable "object_ownership" {
 }
 
 # RDS
-# variable ""
+variable "rds_username" {
+  description = "Database username"
+  type        = string
+}
+
+variable "rds_password" {
+  description = "Database password"
+  type        = string
+}
