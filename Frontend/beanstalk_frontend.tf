@@ -13,14 +13,12 @@ resource "aws_cognito_user_pool_client" "client" {
 }
 
 data "template_file" "example" {
-  template = file(".env.tpl")
-
-  # Variables to replace in the template
+  template = file("env.tpl")
   vars = {
     reactRegion           = var.aws_region
     reactUserPoolId       = aws_cognito_user_pool.pool.id
     reactUserPoolClientId = aws_cognito_user_pool_client.client.id
-    reactApiGateway       = "Test"
+    reactApiGateway       = "http://awseb-e-z-AWSEBLoa-6FSAYCERS71N-561775101.us-east-1.elb.amazonaws.com"
   }
 }
 
@@ -30,25 +28,25 @@ resource "local_file" "generated_file" {
 }
 
 locals {
-  docker_image = "miczarne/repo:latest" # TODO
+  docker_image = "task_manager_frontend_repo:latest"
 }
 
 resource "aws_ecr_repository" "my_repository" {
-  name         = "miczarne/repo" # TODO
+  name         = "task_manager_frontend_repo"
   force_delete = true
 }
 
 resource "null_resource" "docker_build" {
   provisioner "local-exec" {
-    command = "docker build -t miczarne/repo:latest ${path.module}/sources" # TODO
+    command = "docker build -t task_manager_frontend_repo:latest ${path.module}/../../frontend"
   }
 
   provisioner "local-exec" {
-    command = "aws ecr get-login-password --region ${var.aws_region} --profile terraform | docker login --username AWS --password-stdin ${aws_ecr_repository.my_repository.repository_url}"
+    command = "aws ecr get-login-password --region ${var.aws_region} --profile ${var.aws_profile} | docker login --username AWS --password-stdin ${aws_ecr_repository.my_repository.repository_url}"
   }
 
   provisioner "local-exec" {
-    command = " docker tag ${local.docker_image} ${aws_ecr_repository.my_repository.repository_url}:latest"
+    command = "docker tag ${local.docker_image} ${aws_ecr_repository.my_repository.repository_url}:latest"
   }
 
   provisioner "local-exec" {
@@ -56,24 +54,24 @@ resource "null_resource" "docker_build" {
   }
 }
 
-resource "aws_s3_bucket" "s3_bucket_task_manager_app" {
-  bucket = "ww-test-app-5343429"
+resource "aws_s3_bucket" "frontend_s3_bucket" {
+  bucket = "ww-task-manager-app-3929839"
 }
 
-resource "aws_s3_bucket_ownership_controls" "s3_bucket_task_manager_app_ownership_controls" {
-  bucket = aws_s3_bucket.s3_bucket_task_manager_app.id
+resource "aws_s3_bucket_ownership_controls" "frontend_s3_bucket_ownership_controls" {
+  bucket = aws_s3_bucket.frontend_s3_bucket.id
   rule {
-    object_ownership = "BucketOwnerPreferred"
+    object_ownership = var.object_ownership
   }
 }
 
-resource "aws_s3_bucket_acl" "s3_bucket_task_manager_app_acl" {
-  depends_on = [aws_s3_bucket_ownership_controls.s3_bucket_task_manager_app_ownership_controls]
-  bucket     = aws_s3_bucket.s3_bucket_task_manager_app.id
+resource "aws_s3_bucket_acl" "frontend_s3_bucket_acl" {
+  depends_on = [aws_s3_bucket_ownership_controls.frontend_s3_bucket_ownership_controls]
+  bucket     = aws_s3_bucket.frontend_s3_bucket.id
   acl        = "private"
 }
 
-data "template_file" "dockerrun" {
+data "template_file" "frontend_dockerrun" {
   depends_on = [null_resource.docker_build]
   template   = file("dockerrun.aws.json.tpl")
 
@@ -82,42 +80,37 @@ data "template_file" "dockerrun" {
   }
 }
 
-resource "aws_s3_bucket_object" "dockerrun" {
-  depends_on = [data.template_file.dockerrun]
-  bucket     = aws_s3_bucket.s3_bucket_task_manager_app.id
+resource "aws_s3_bucket_object" "frontend_dockerrun" {
+  depends_on = [data.template_file.frontend_dockerrun]
+  bucket     = aws_s3_bucket.frontend_s3_bucket.id
   key        = "Dockerrun.aws.json"
-  content    = data.template_file.dockerrun.rendered
-}
-
-resource "aws_elastic_beanstalk_application" "my_app" {
-  name        = "my-docker-app"
-  description = "Elastic Beanstalk application for Docker"
+  content    = data.template_file.frontend_dockerrun.rendered
 }
 
 resource "aws_elastic_beanstalk_application" "beanstalk_task_manager" {
-  name        = "miczarne-test-app"
+  name        = "task-manager-app"
   description = "Task Manager Application"
 }
 
-resource "aws_elastic_beanstalk_application_version" "beanstalk_task_manager_version" {
-  depends_on  = [aws_s3_bucket_object.dockerrun]
+resource "aws_elastic_beanstalk_application_version" "frontend_app_version" {
+  depends_on  = [aws_s3_bucket_object.frontend_dockerrun]
   application = aws_elastic_beanstalk_application.beanstalk_task_manager.name
-  bucket      = aws_s3_bucket.s3_bucket_task_manager_app.id
-  key         = aws_s3_bucket_object.dockerrun.key
-  name        = "miczarne-test-app-0.0.1"
+  bucket      = aws_s3_bucket.frontend_s3_bucket.id
+  key         = aws_s3_bucket_object.frontend_dockerrun.key
+  name        = "frontend-app-0.0.1"
 }
 
-resource "aws_elastic_beanstalk_environment" "beanstalk_task_manager_env" {
-  depends_on          = [aws_elastic_beanstalk_application_version.beanstalk_task_manager_version]
-  name                = "ww-task-manager-app"
+resource "aws_elastic_beanstalk_environment" "frontend_app_env" {
+  depends_on          = [aws_elastic_beanstalk_application_version.frontend_app_version]
+  name                = "frontend-task-manager-app"
   application         = aws_elastic_beanstalk_application.beanstalk_task_manager.name
   solution_stack_name = "64bit Amazon Linux 2 v4.0.5 running Docker"
-  version_label       = aws_elastic_beanstalk_application_version.beanstalk_task_manager_version.name
+  version_label       = aws_elastic_beanstalk_application_version.frontend_app_version.name
 
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
     name      = "IamInstanceProfile"
-    value     = "aws-elasticbeanstalk-ec2-role"
+    value     = "LabInstanceProfile"
   }
 
   setting {
