@@ -24,7 +24,7 @@ data "template_file" "example" {
 
 resource "local_file" "generated_file" {
   content  = data.template_file.example.rendered
-  filename = "./sources/.env"
+  filename = "${path.module}/../../frontend/.env"
 }
 
 locals {
