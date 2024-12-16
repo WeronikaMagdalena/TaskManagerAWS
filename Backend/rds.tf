@@ -1,11 +1,11 @@
 resource "aws_db_instance" "task_manager_db" {
-  identifier             = "task-manager-db-4"
+  identifier             = "task-manager-db-6"
   allocated_storage      = 20
   engine                 = "postgres"
   engine_version         = "16.3"
   instance_class         = "db.t3.micro"
-  username               = "wera"     # Create variable for username and password
-  password               = "password" # Secret Manager
+  username               = var.db_username
+  password               = var.db_password
   vpc_security_group_ids = [aws_security_group.rds_sg.id]
   publicly_accessible    = true
   skip_final_snapshot    = true
