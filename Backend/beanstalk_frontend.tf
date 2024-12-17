@@ -19,7 +19,7 @@ data "template_file" "example" {
     reactRegion           = var.aws_region
     reactUserPoolId       = aws_cognito_user_pool.pool.id
     reactUserPoolClientId = aws_cognito_user_pool_client.client.id
-    reactApiGateway       = "http://${aws_elastic_beanstalk_environment.backend_app_env.endpoint_url}" #
+    reactApiGateway       = aws_api_gateway_deployment.ApiDeployment.invoke_url
   }
 }
 
