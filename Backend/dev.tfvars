@@ -6,8 +6,7 @@ aws_profile = "default"
 cognito_user_pool        = "task-manager-pool"
 cognito_user_pool_client = "task-manager-client"
 
-web_app_deployment_bucket = "ww-task-manager-deployment-bucket"
-
+frontend_url = "http://frontend-task-manager-app.eba-kntfgecm.us-east-1.elasticbeanstalk.com"
 
 #RDS
 db_username = "wera"

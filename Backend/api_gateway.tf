@@ -22,12 +22,12 @@ resource "aws_api_gateway_integration" "ApiProxyIntegration" {
   http_method             = aws_api_gateway_method.ApiProxyMethod.http_method
   type                    = "HTTP"
   integration_http_method = "ANY"
-  uri                     = "http://${aws_elastic_beanstalk_environment.beanstalk_task_manager_env.endpoint_url}/{proxy}"
-  depends_on              = [aws_elastic_beanstalk_environment.beanstalk_task_manager_env, aws_api_gateway_rest_api.ApiGateway, aws_api_gateway_resource.ApiProxyResource, aws_api_gateway_method.ApiProxyMethod]
+  uri                     = "http://${aws_elastic_beanstalk_environment.backend_app_env.endpoint_url}/{proxy}"
+  depends_on              = [aws_elastic_beanstalk_environment.backend_app_env, aws_api_gateway_rest_api.ApiGateway, aws_api_gateway_resource.ApiProxyResource, aws_api_gateway_method.ApiProxyMethod]
 }
 
 resource "aws_api_gateway_deployment" "ApiDeployment" {
-  depends_on  = [aws_elastic_beanstalk_environment.beanstalk_task_manager_env, aws_api_gateway_rest_api.ApiGateway, aws_api_gateway_resource.ApiProxyResource, aws_api_gateway_method.ApiProxyMethod, aws_api_gateway_integration.ApiProxyIntegration]
+  depends_on  = [aws_elastic_beanstalk_environment.backend_app_env, aws_api_gateway_rest_api.ApiGateway, aws_api_gateway_resource.ApiProxyResource, aws_api_gateway_method.ApiProxyMethod, aws_api_gateway_integration.ApiProxyIntegration]
   rest_api_id = aws_api_gateway_rest_api.ApiGateway.id
 }
 

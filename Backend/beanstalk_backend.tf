@@ -1,43 +1,85 @@
-resource "aws_s3_bucket" "s3_bucket_task_manager_app" {
+provider "docker" {
+  host = "tcp://localhost:2375"
+} # remove one ?
+
+locals {
+  docker_image = "task_manager_backend_repo:latest"
+}
+
+resource "aws_ecr_repository" "backend_repository" {
+  name         = "task_manager_backend_repo"
+  force_delete = true
+}
+
+resource "null_resource" "docker_build_backend" {
+  provisioner "local-exec" {
+    command = "docker build -t task_manager_backend_repo:latest ${path.module}/sources" # later can point to backend jar directly (and Dockerfile there)
+  }
+
+  provisioner "local-exec" {
+    command = "aws ecr get-login-password --region ${var.aws_region} --profile ${var.aws_profile} | docker login --username AWS --password-stdin ${aws_ecr_repository.backend_repository.repository_url}"
+  }
+
+  provisioner "local-exec" {
+    command = "docker tag ${local.docker_image} ${aws_ecr_repository.backend_repository.repository_url}:latest"
+  }
+
+  provisioner "local-exec" {
+    command = "docker push ${aws_ecr_repository.backend_repository.repository_url}:latest"
+  }
+}
+
+resource "aws_s3_bucket" "backend_s3_bucket" {
   bucket = "ww-task-manager-app-27236348"
 }
 
-resource "aws_s3_bucket_ownership_controls" "s3_bucket_task_manager_app_ownership_controls" {
-  bucket = aws_s3_bucket.s3_bucket_task_manager_app.id
+resource "aws_s3_bucket_ownership_controls" "backend_s3_bucket_ownership_controls" {
+  bucket = aws_s3_bucket.backend_s3_bucket.id
   rule {
     object_ownership = var.object_ownership
   }
 }
 
-resource "aws_s3_bucket_acl" "s3_bucket_task_manager_app_acl" {
-  depends_on = [aws_s3_bucket_ownership_controls.s3_bucket_task_manager_app_ownership_controls]
-  bucket     = aws_s3_bucket.s3_bucket_task_manager_app.id
+resource "aws_s3_bucket_acl" "backend_s3_bucket_acl" {
+  depends_on = [aws_s3_bucket_ownership_controls.backend_s3_bucket_ownership_controls]
+  bucket     = aws_s3_bucket.backend_s3_bucket.id
   acl        = "private"
 }
 
-resource "aws_s3_bucket_object" "dockerrun" {
-  bucket = aws_s3_bucket.s3_bucket_task_manager_app.id
-  key    = "Dockerrun.aws.json"
-  source = "sources/Dockerrun.aws.json"
+data "template_file" "backend_dockerrun" {
+  depends_on = [null_resource.docker_build_backend]
+  template   = file("dockerrun.aws.json.tpl")
+
+  vars = {
+    aws_repo = "${aws_ecr_repository.backend_repository.repository_url}:latest"
+  }
 }
 
-resource "aws_elastic_beanstalk_application" "beanstalk_task_manager" {
-  name        = "ww-task-manager"
+resource "aws_s3_bucket_object" "backend_dockerrun" {
+  depends_on = [data.template_file.backend_dockerrun]
+  bucket     = aws_s3_bucket.backend_s3_bucket.id
+  key        = "Dockerrun.aws.json"
+  content    = data.template_file.backend_dockerrun.rendered
+}
+
+resource "aws_elastic_beanstalk_application" "backend_beanstalk_task_manager" {
+  name        = "task-manager-api"
   description = "Task Manager Application"
 }
 
-resource "aws_elastic_beanstalk_application_version" "beanstalk_task_manager_version" {
-  application = aws_elastic_beanstalk_application.beanstalk_task_manager.name
-  bucket      = aws_s3_bucket.s3_bucket_task_manager_app.id
-  key         = aws_s3_bucket_object.dockerrun.key
-  name        = "task-manager-0.0.1"
+resource "aws_elastic_beanstalk_application_version" "backend_app_version" {
+  application = aws_elastic_beanstalk_application.backend_beanstalk_task_manager.name
+  bucket      = aws_s3_bucket.backend_s3_bucket.id
+  key         = aws_s3_bucket_object.backend_dockerrun.key
+  name        = "backend-app-0.0.1"
 }
 
-resource "aws_elastic_beanstalk_environment" "beanstalk_task_manager_env" {
-  name                = "ww-task-manager"
-  application         = aws_elastic_beanstalk_application.beanstalk_task_manager.name
+resource "aws_elastic_beanstalk_environment" "backend_app_env" {
+  # depends_on          = [aws_elastic_beanstalk_application_version.backend_app_version]
+  name                = "backend-task-manager-app"
+  application         = aws_elastic_beanstalk_application.backend_beanstalk_task_manager.name
   solution_stack_name = "64bit Amazon Linux 2 v4.0.5 running Docker"
-  version_label       = aws_elastic_beanstalk_application_version.beanstalk_task_manager_version.name
+  version_label       = aws_elastic_beanstalk_application_version.backend_app_version.name
 
   setting {
     namespace = "aws:autoscaling:launchconfiguration"
@@ -61,6 +103,12 @@ resource "aws_elastic_beanstalk_environment" "beanstalk_task_manager_env" {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "DB_PASSWORD"
     value     = var.db_password
+  }
+
+  setting {
+    namespace = "aws:elasticbeanstalk:application:environment"
+    name      = "FRONTEND_URL"
+    value     = "frontend-task-manager-app.eba-kntfgecm.us-east-1.elasticbeanstalk.com " # TODO
   }
 
   setting {

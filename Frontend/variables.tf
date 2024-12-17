@@ -19,11 +19,6 @@ variable "cognito_user_pool_client" {
   type        = string
 }
 
-variable "web_app_deployment_bucket" {
-  description = "Deployment bucket for react web app"
-  type        = string
-}
-
 variable "object_ownership" {
   default = "BucketOwnerPreferred"
   type    = string
