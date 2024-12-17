@@ -39,9 +39,3 @@ variable "db_name" {
   description = "Database name"
   type        = string
 }
-
-# Frontend
-variable "frontend_url" {
-  description = "Frontend URL"
-  type        = string
-}

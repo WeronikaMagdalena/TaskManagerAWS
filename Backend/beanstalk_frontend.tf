@@ -1,7 +1,3 @@
-provider "docker" {
-  host = "tcp://localhost:2375"
-}
-
 resource "aws_cognito_user_pool" "pool" {
   name                     = "my_user_pool"
   auto_verified_attributes = ["email"]
@@ -13,12 +9,17 @@ resource "aws_cognito_user_pool_client" "client" {
 }
 
 data "template_file" "example" {
+  depends_on = [
+    aws_elastic_beanstalk_environment.backend_app_env,
+    aws_cognito_user_pool.pool,
+    aws_cognito_user_pool_client.client
+  ]
   template = file("env.tpl")
   vars = {
     reactRegion           = var.aws_region
     reactUserPoolId       = aws_cognito_user_pool.pool.id
     reactUserPoolClientId = aws_cognito_user_pool_client.client.id
-    reactApiGateway       = "http://awseb-e-z-AWSEBLoa-6FSAYCERS71N-561775101.us-east-1.elb.amazonaws.com" # TODO
+    reactApiGateway       = "https://${aws_elastic_beanstalk_environment.backend_app_env.endpoint_url}" #
   }
 }
 
@@ -28,7 +29,7 @@ resource "local_file" "generated_file" {
 }
 
 locals {
-  docker_image = "task_manager_frontend_repo:latest"
+  docker_image_frontend = "task_manager_frontend_repo:latest"
 }
 
 resource "aws_ecr_repository" "frontend_repository" {
@@ -37,6 +38,7 @@ resource "aws_ecr_repository" "frontend_repository" {
 }
 
 resource "null_resource" "docker_build_frontend" {
+  depends_on = [data.template_file.example]
   provisioner "local-exec" {
     command = "docker build -t task_manager_frontend_repo:latest ${path.module}/../../frontend"
   }
@@ -46,7 +48,7 @@ resource "null_resource" "docker_build_frontend" {
   }
 
   provisioner "local-exec" {
-    command = "docker tag ${local.docker_image} ${aws_ecr_repository.frontend_repository.repository_url}:latest"
+    command = "docker tag ${local.docker_image_frontend} ${aws_ecr_repository.frontend_repository.repository_url}:latest"
   }
 
   provisioner "local-exec" {
@@ -55,7 +57,7 @@ resource "null_resource" "docker_build_frontend" {
 }
 
 resource "aws_s3_bucket" "frontend_s3_bucket" {
-  bucket = "ww-task-manager-app-3929839"
+  bucket = "ww-task-manager-app-453453445343"
 }
 
 resource "aws_s3_bucket_ownership_controls" "frontend_s3_bucket_ownership_controls" {
@@ -77,6 +79,7 @@ data "template_file" "frontend_dockerrun" {
 
   vars = {
     aws_repo = "${aws_ecr_repository.frontend_repository.repository_url}:latest"
+    port     = 80
   }
 }
 
@@ -88,12 +91,11 @@ resource "aws_s3_bucket_object" "frontend_dockerrun" {
 }
 
 resource "aws_elastic_beanstalk_application" "frontend_beanstalk_task_manager" {
-  name        = "ww-task-manager-app"
+  name        = "ww-task-manager-app-frontend"
   description = "Task Manager Application"
 }
 
 resource "aws_elastic_beanstalk_application_version" "frontend_app_version" {
-  depends_on  = [aws_s3_bucket_object.frontend_dockerrun]
   application = aws_elastic_beanstalk_application.frontend_beanstalk_task_manager.name
   bucket      = aws_s3_bucket.frontend_s3_bucket.id
   key         = aws_s3_bucket_object.frontend_dockerrun.key
@@ -101,8 +103,8 @@ resource "aws_elastic_beanstalk_application_version" "frontend_app_version" {
 }
 
 resource "aws_elastic_beanstalk_environment" "frontend_app_env" {
-  depends_on          = [aws_elastic_beanstalk_application_version.frontend_app_version]
-  name                = "frontend-task-manager-app"
+  depends_on          = [aws_elastic_beanstalk_application_version.backend_app_version]
+  name                = "frontend-task-manager"
   application         = aws_elastic_beanstalk_application.frontend_beanstalk_task_manager.name
   solution_stack_name = "64bit Amazon Linux 2 v4.0.5 running Docker"
   version_label       = aws_elastic_beanstalk_application_version.frontend_app_version.name

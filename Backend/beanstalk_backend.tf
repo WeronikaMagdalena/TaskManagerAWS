@@ -1,9 +1,9 @@
 provider "docker" {
   host = "tcp://localhost:2375"
-} # remove one ?
+}
 
 locals {
-  docker_image = "task_manager_backend_repo:latest"
+  docker_image_backend = "task_manager_backend_repo:latest"
 }
 
 resource "aws_ecr_repository" "backend_repository" {
@@ -21,7 +21,7 @@ resource "null_resource" "docker_build_backend" {
   }
 
   provisioner "local-exec" {
-    command = "docker tag ${local.docker_image} ${aws_ecr_repository.backend_repository.repository_url}:latest"
+    command = "docker tag ${local.docker_image_backend} ${aws_ecr_repository.backend_repository.repository_url}:latest"
   }
 
   provisioner "local-exec" {
@@ -52,6 +52,7 @@ data "template_file" "backend_dockerrun" {
 
   vars = {
     aws_repo = "${aws_ecr_repository.backend_repository.repository_url}:latest"
+    port     = 8080
   }
 }
 
@@ -63,7 +64,7 @@ resource "aws_s3_bucket_object" "backend_dockerrun" {
 }
 
 resource "aws_elastic_beanstalk_application" "backend_beanstalk_task_manager" {
-  name        = "task-manager-api"
+  name        = "ww-task-manager-app"
   description = "Task Manager Application"
 }
 
@@ -75,8 +76,8 @@ resource "aws_elastic_beanstalk_application_version" "backend_app_version" {
 }
 
 resource "aws_elastic_beanstalk_environment" "backend_app_env" {
-  # depends_on          = [aws_elastic_beanstalk_application_version.backend_app_version]
-  name                = "backend-task-manager-app"
+  depends_on          = [aws_elastic_beanstalk_application_version.backend_app_version]
+  name                = "backend-task-manager"
   application         = aws_elastic_beanstalk_application.backend_beanstalk_task_manager.name
   solution_stack_name = "64bit Amazon Linux 2 v4.0.5 running Docker"
   version_label       = aws_elastic_beanstalk_application_version.backend_app_version.name
@@ -103,12 +104,6 @@ resource "aws_elastic_beanstalk_environment" "backend_app_env" {
     namespace = "aws:elasticbeanstalk:application:environment"
     name      = "DB_PASSWORD"
     value     = var.db_password
-  }
-
-  setting {
-    namespace = "aws:elasticbeanstalk:application:environment"
-    name      = "FRONTEND_URL"
-    value     = "frontend-task-manager-app.eba-kntfgecm.us-east-1.elasticbeanstalk.com " # TODO
   }
 
   setting {
